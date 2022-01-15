@@ -70,7 +70,6 @@ def detect_and_predict_mask(frame, faceNet, maskNet):
 		# in the above `for` loop
 		faces = np.array(faces, dtype="float32")
 		preds = maskNet.predict(faces, batch_size=32)
-
 	# return a 2-tuple of the face locations and their corresponding
 	# locations
 	return (locs, preds)
@@ -98,10 +97,26 @@ faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
 print("[INFO] loading face mask detector model...")
 maskNet = load_model(args["model"])
 
+
+age_proto = "age_deploy.prototxt"
+age_model = "age_net.caffemodel"
+
+gender_proto = "gender_deploy.prototxt"
+gender_model = "gender_net.caffemodel"
+
+age_net = cv2.dnn.readNet(age_model, age_proto)
+gender_net = cv2.dnn.readNet(gender_model, gender_proto)
+age_list = ['(0-2 age)', '(4-6 age)', '(8-12 age)', '(15-20 age)', '(25-32 age)', '(38-43 age)', '(48-53 age)', '(60-100 age)']
+gender_list = ['Female', 'Male']
+Age_Gen_model_mean_values = (78.4263377603, 87.7689143744, 114.895847746)
+
 # initialize the video stream and allow the camera sensor to warm up
 print("[INFO] starting video stream...")
 vs = VideoStream(src=0).start()
 time.sleep(2.0)
+
+
+pe = 0
 
 # loop over the frames from the video stream
 while True:
@@ -121,18 +136,27 @@ while True:
 		(startX, startY, endX, endY) = box
 		(mask, withoutMask) = pred
 
+		tempblob = cv2.dnn.blobFromImage(frame, 1.0, (227, 227), Age_Gen_model_mean_values, swapRB = False)
+		gender_net.setInput(tempblob)
+		gender_pred = gender_net.forward()
+		gender = gender_list[gender_pred[0].argmax()]
+
+		age_net.setInput(tempblob)
+		age_pred = age_net.forward()
+		age = age_list[age_pred[0].argmax()]
+
 		# determine the class label and color we'll use to draw
 		# the bounding box and text
 		label = "Mask" if mask > withoutMask else "No Mask"
 		color = (0, 255, 0) if label == "Mask" else (0, 0, 255)
-			
+
 		# include the probability in the label
-		label = "{}: {:.2f}%".format(label, max(mask, withoutMask) * 100)
+		label = "{}: {:.2f}% {} {}".format(label, max(mask, withoutMask) * 100 , gender , age)
 
 		# display the label and bounding box rectangle on the output
 		# frame
 		cv2.putText(frame, label, (startX, startY - 10),
-			cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
+			cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 2)
 		cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
 
 	# show the output frame
