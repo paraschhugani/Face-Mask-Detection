@@ -238,7 +238,7 @@ while True:
 	for (box, pred) in zip(locs, preds):
 		#calling face detectors to save people faces
 		# print("printing box " + str(box))
-		dataFace(frame)
+		# dataFace(frame)
 
 		# unpack the bounding box and predictions
 		(startX, startY, endX, endY) = box
